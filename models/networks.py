@@ -104,6 +104,7 @@ class ConvBlock(nn.Module):
 
 class ResBlock(nn.Module):
     # Upres block which uses pixel shuffle with res connection
+
     def __init__(self, c, kernel_size=3):
         super(ResBlock, self).__init__()
 
@@ -140,6 +141,7 @@ class ResBlock(nn.Module):
 
 class UpResBlock(nn.Module):
     # Upres block which uses pixel shuffle
+
     def __init__(self, ic, oc, kernel_size=3):
         super(UpResBlock, self).__init__()
 
@@ -162,11 +164,11 @@ class UpResBlock(nn.Module):
         return x
 
 
-class DownRes(nn.Module):
+class DownResBlock(nn.Module):
     # DownRes block, with or without batchnorm
 
     def __init__(self, ic, oc, kernel_size=3, enc=False):
-        super(DownRes, self).__init__()
+        super(DownResBlock, self).__init__()
 
         self.kernel_size = kernel_size
         self.oc = oc
@@ -288,6 +290,7 @@ class Decoder(nn.Module):
 
 class Encoder(nn.Module):
     # Encodes input image into a latent vector
+
     def __init__(self, channels=3, filts_min=64, filts=1024, layers=5, attention=False):
         super(Encoder, self).__init__()
         operations = []
@@ -303,10 +306,10 @@ class Encoder(nn.Module):
 
         for a in range(layers):
             print('down block')
-            operations += [DownRes(ic=min(filt_count, filts),
-                                   oc=min(filt_count * 2, filts),
-                                   kernel_size=3,
-                                   enc=True)]
+            operations += [DownResBlock(ic=min(filt_count, filts),
+                                        oc=min(filt_count * 2, filts),
+                                        kernel_size=3,
+                                        enc=True)]
 
             if a in [1, 2] and attention:
                 print('attn')
@@ -355,9 +358,9 @@ class Discriminator(nn.Module):
         filt_count = filts_min
 
         for a in range(layers):
-            operations += [DownRes(ic=min(filt_count, filts),
-                                   oc=min(filt_count * 2, filts),
-                                   kernel_size=3)]
+            operations += [DownResBlock(ic=min(filt_count, filts),
+                                        oc=min(filt_count * 2, filts),
+                                        kernel_size=3)]
 
             if a > 2 and attention:
                 print('attn')
@@ -431,6 +434,7 @@ def edge_loss(fake_img, real_img, edge_weight):
 
 def recon_loss(fake_img, real_img, recon_weight):
     # Calculate L1 Loss
+
     result_face = F.l1_loss(fake_img, real_img) * recon_weight
     return result_face
 
