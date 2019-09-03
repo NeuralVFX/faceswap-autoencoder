@@ -5,9 +5,10 @@ This is a Pytorch implementation of a Face Swap Autoencoder, roughly based on  [
 
 ## Interesting Stuff
 
-- Both the autoencoder and the discriminator are using spectral normalization
-- Discriminator is being used only as a learned preceptual loss, not a direct adversarial loss
-- The Conv2d operation has been modified to be compatible with the use of spectral normalization before a pixel-shuffle
+- Both the autoencoder and the discriminator are using `spectral normalization`
+- Discriminator is being used only as a `learned preceptual loss`, not a direct adversarial loss
+- Conv2d has been customized to properly use spectral normalization before a pixel-shuffle
+- Downsampling operations have been remove from VGG-Face to provide more detail in perceptual loss
 
 
 
