@@ -28,7 +28,7 @@ class FaceSwap:
     """
     Example usage if not using command line:
 
-    from reverse_track import *
+    from face_swap import *
 
     params = {'dataset_a': 'faceA',
               'dataset_b': 'faceB',

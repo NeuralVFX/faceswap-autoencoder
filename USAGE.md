@@ -57,8 +57,10 @@ python train.py --train_epoch 200 --save_root face_swap --load_state output/face
 
 - `weights`, `test images` and `loss graph`, are all output to this directory: `output/<save_root>_*.*`
 
-- Test Images Example: `output/faceswap_200.jpg`
+- Test Images Example: `output/faceswap_A_200.jpg`
 ![](examples/AtoB.png)
+- Test Images Example: `output/faceswap_B_200.jpg`
+
 ![](examples/BtoA.png)
 
 - Loss Graph Example (output every time weights are saved): `output/chiang_mai_loss_160.jpg`

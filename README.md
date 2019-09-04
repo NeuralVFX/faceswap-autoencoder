@@ -13,7 +13,7 @@ This is a Pytorch implementation of a Face Swap Autoencoder, roughly based on  [
 ## Example Output
 ### Tom Hanks(Old to Young)
 ![](examples/AtoB_small.png)
-###  Hanks(Young to Old)
+### Tom Hanks(Young to Old)
 ![](examples/BtoA_small.png)
 
 
