@@ -30,29 +30,27 @@ class FaceSwap:
 
     from reverse_track import *
 
-    params = {'dataset': 'chiang_mai',
-              'batch_size': 5,
-              'workers': 8,
-              'res': 512,
-              'drop': 0.01,
-              'center_drop': .01,
-              'weight_decay': .000001,
-              'vgg_layers_c': [2,7,12],
-              'vgg_weight_div': 1,
+    params = {'dataset_a': 'faceA',
+              'dataset_b': 'faceB',
+              'enc_att':True,
+              'dec_att':True,
+              'disc_att' :False,
+              'batch_size': 8,
+              'workers': 16,
+              'res': 128,
+              'res_layers_p': [2,6,9,14,17,20,23,26],
+              'res_layers_p_weight': [1, 1, 1,1,1,1,1,1],
               'lr': 2e-4,
-              'disc_layers': 3,
               'beta1': .5,
               'beta2': .999,
-              'content_weight': 2.5,
-              'l1_weight': 3.,
-              'train_epoch': 200,
-              'save_every': 5,
-              'ids_test': [0, 100],
-              'ids_train': [0, 2],
+              'edge_weight':.1,
+              'recon_weight': 3.,
+              'train_epoch': 301,
+              'save_every': 20,
               'save_img_every': 1,
               'lr_drop_start': 0,
-              'lr_drop_every': 5,
-              'save_root': 'vgg_up'}
+              'lr_drop_every': 40,
+              'save_root': 'gump'}
 
     rev = FaceSwap(params)
     rev.train()
@@ -101,23 +99,20 @@ class FaceSwap:
                                           std=[1, 1, 1])
         self.res_tran.cuda()
 
-        # TODO DETERMIN WHAT LAYER DEPTH MAKES SENSE
         self.model_dict['ENC'] = n.Encoder(layers=int(math.log(params["res"], 2) - 2),
                                            attention=params['enc_att'])
-        enc_convs = [list(self.model_dict['ENC'].children())[0][1],
-                     list(list(list(self.model_dict['ENC'].children())[0][2].children())[0].children())[0],
-                     list(list(list(self.model_dict['ENC'].children())[0][3].children())[0].children())[0]]
-        # list(list(list(self.model_dict['ENC'].children())[2][4].children())[0].children())[0],
-        # list(list(list(self.model_dict['ENC'].children())[2][5].children())[0].children())[0]]
 
-        self.enc_hooks = [n.SetHook(i) for i in enc_convs]
+        self.model_dict['DEC_A'] = n.Decoder(layers=int(math.log(params["res"], 2) - 4),
+                                             min_filts=128,
+                                             attention=params['dec_att'])
+        self.model_dict['DEC_B'] = n.Decoder(layers=int(math.log(params["res"], 2) - 4),
+                                             min_filts=128,
+                                             attention=params['dec_att'])
 
-        self.model_dict['DEC_A'] = n.Decoder(layers=int(math.log(params["res"], 2) - 4), min_filts=128,
-                                             attention=params['dec_att'])
-        self.model_dict['DEC_B'] = n.Decoder(layers=int(math.log(params["res"], 2) - 4), min_filts=128,
-                                             attention=params['dec_att'])
-        self.model_dict['DISC_A'] = n.Discriminator(attention=params['disc_att'], channels=3)
-        self.model_dict['DISC_B'] = n.Discriminator(attention=params['disc_att'], channels=3)
+        self.model_dict['DISC_A'] = n.Discriminator(attention=params['disc_att'],
+                                                    channels=3)
+        self.model_dict['DISC_B'] = n.Discriminator(attention=params['disc_att'],
+                                                    channels=3)
 
         self.res_face = n.resnet_face()
         for param in self.res_face.parameters():
@@ -140,6 +135,7 @@ class FaceSwap:
         face_children = list(self.res_face.children())
 
         res_face_hooks = [n.SetHook(face_children[i]) for i in params['res_layers_p']]
+
         self.perceptual_loss = n.PerceptualLoss(self.res_face,
                                                 params['perceptual_weight'],
                                                 params['res_layers_p'],
@@ -235,15 +231,11 @@ class FaceSwap:
 
         for i in self.opt_dict.keys():
             if i in state['optimizers'].keys():
-                # if "DISC" not in i:
                 self.opt_dict[i].load_state_dict(state['optimizers'][i])
 
-        # if not reset:
         self.current_iter = state['iter'] + 1
         self.current_epoch = state['epoch'] + 1
-
         self.train_hist_dict = state['train_hist']
-        # self.train_hist_dict_test = state['train_hist_test']
 
         self.display_history()
 
@@ -261,7 +253,6 @@ class FaceSwap:
                        'models': out_model_dict,
                        'optimizers': out_opt_dict,
                        'train_hist': self.train_hist_dict,
-                       # 'train_hist_test': self.train_hist_dict_test
                        }
 
         torch.save(model_state, filepath)
@@ -279,7 +270,6 @@ class FaceSwap:
 
         plt.xlabel('Iteration')
         plt.ylabel('Loss')
-        # plt.legend(loc=2)
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
@@ -398,9 +388,9 @@ class FaceSwap:
         # generate fake
         fake = self.model_dict[f"DEC_{which}"](self.model_dict["ENC"](distorted))
 
+        # comp result over input using mask
         fake_raw = fake[:, 1:, :, :]
         fake_alpha = fake[:, :1, :, :]
-        # print ( distorted.shape, fake_raw.shape)
         fake_comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
 
         # get perceptual loss, using mixup between comped and raw
@@ -410,29 +400,41 @@ class FaceSwap:
         perc_losses_mixup = self.perceptual_loss(self.res_tran(mixup), self.res_tran(real))
         self.loss_batch_dict[f'P_{which}_Loss'] = sum(perc_losses_mixup)
 
+        # edge loss
         edge = n.edge_loss(fake_raw, real, self.params['edge_weight'])
-        # get recon loss
+
+        # Recon loss
         l1_loss = n.recon_loss(fake_raw, real, self.params['recon_weight'])
         self.loss_batch_dict[f'L1_{which}_Loss'] = l1_loss
 
-        # get discriminator loss
-        disc_perc_losses_fake, disc_result_losses_fake = self.perc_dict[f'DISC_{which}'](fake_raw, real, disc_mode=True)
+        # Discriminator loss
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
+        disc_perc_losses_fake, disc_result_losses_fake = self.perc_dict[f'DISC_{which}'](fake_raw, real,
+                                                                                         disc_mode=True)
         disc_perc_losses_comp, disc_result_losses_comp = self.perc_dict[f'DISC_{which}'](fake_comp, real,
                                                                                          disc_mode=True)
-
+        # Adversarial loss
         self.loss_batch_dict[f'AE_{which}_Loss'] = (-disc_result_losses_fake.mean() * .5) + (
                 -disc_result_losses_comp.mean() * .5)
-        self.loss_batch_dict[f'DP_{which}_Loss'] = (sum(disc_perc_losses_fake) * .5) + (sum(disc_perc_losses_comp) * .5)
-        # Mask Loss
+
+        # Perceptual loss from discriminator
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
+        self.loss_batch_dict[f'DP_{which}_Loss'] = (sum(disc_perc_losses_fake) * .5) +\
+                                                   (sum(disc_perc_losses_comp) * .5)
+
+        # Alpha Mask loss
         self.loss_batch_dict[f'M_{which}_Loss'] = 1e-2 * torch.mean(torch.abs(fake_alpha))
 
-        # Alpha mask total variation loss
-        self.loss_batch_dict[f'MV_{which}_Loss'] = .1 * (
-                torch.mean(n.emboss(fake_alpha, axis=2)) + torch.mean(n.emboss(fake_alpha, axis=3)))
-        total_loss = edge + self.loss_batch_dict[f'L1_{which}_Loss'] + self.loss_batch_dict[f'P_{which}_Loss'] + \
-                     self.loss_batch_dict[f'DP_{which}_Loss'] + self.loss_batch_dict[f'M_{which}_Loss'] + \
-                     self.loss_batch_dict[
-                         f'MV_{which}_Loss']  # +(self.loss_batch_dict[f'AE_{which}_Loss']*.1)
+        # Alpha mask variation loss
+        self.loss_batch_dict[f'MV_{which}_Loss'] = .1 * ( torch.mean(n.emboss(fake_alpha, axis=2)) + \
+                                                          torch.mean(n.emboss(fake_alpha, axis=3)))
+
+        total_loss = self.loss_batch_dict[f'L1_{which}_Loss'] +\
+                     self.loss_batch_dict[f'P_{which}_Loss'] + \
+                     self.loss_batch_dict[f'DP_{which}_Loss'] +\
+                     self.loss_batch_dict[f'M_{which}_Loss'] + \
+                     self.loss_batch_dict[f'MV_{which}_Loss'] + \
+                     edge
 
         total_loss.backward()
         self.opt_dict[f"AE_{which}"].step()
@@ -455,14 +457,14 @@ class FaceSwap:
         fake_alpha = fake[:, :1, :, :]
         comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
         # discriminate fake samples
-        # TODO - USE STOCASTIC CHOICE INSTEAD OF RNNING BOTH
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
         d_result_fake_comp = self.model_dict[f"DISC_{which}"](comp)
         d_result_fake_rgb = self.model_dict[f"DISC_{which}"](fake_raw)
         # discriminate real samples
         d_result_real = self.model_dict[f"DISC_{which}"](real)
 
         # add up disc a loss and step
-        # TODO - USE STOCASTIC CHOICE INSTEAD OF ADDING BOTH
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
         comp_loss = nn.ReLU()(1.0 - d_result_real).mean() + nn.ReLU()(1.0 + d_result_fake_comp).mean()
         rgb_loss = nn.ReLU()(1.0 - d_result_real).mean() + nn.ReLU()(1.0 + d_result_fake_rgb).mean()
         self.loss_batch_dict[f'D_{which}_Loss'] = (comp_loss * .5) + (rgb_loss * .5)
