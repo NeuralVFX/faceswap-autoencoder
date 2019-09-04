@@ -20,7 +20,7 @@ def weights_init_normal(m):
         if 'ConvTrans' == classname:
             pass
         elif 'Linear' in classname:
-            # TODO - CHECK IF SHOULD USE ORTHAGONAL
+            #TODO - CHECK IF ORTHAGONAL IS BETTER
             nn.init.kaiming_normal(m.weight.data)
         elif 'Conv2d' in classname or 'ConvTrans' in classname:
             nn.init.kaiming_normal(m.weight.data)

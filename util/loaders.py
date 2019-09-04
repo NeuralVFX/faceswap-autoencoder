@@ -284,8 +284,8 @@ class FaceDataset(Dataset):
     # Load Images from GeoPose3k Dataset and Apply Augmentation
     def __init__(self, path_a, path_b, transform, output_res=256):
         self.transform = transform
-        self.path_list_rgb = glob.glob(str(path_a) + '/rgb/*.jpg')
-        self.path_list_rgb_b = glob.glob(str(path_b) + '/rgb/*.jpg')
+        self.path_list_rgb = glob.glob(str(path_a) + '/*.jpg')
+        self.path_list_rgb_b = glob.glob(str(path_b) + '/*.jpg')
         self.output_res = output_res
         self.rand_color = RandomColorCV(all_images=self.path_list_rgb + self.path_list_rgb_b,
                                         crop_ratio=.2)
