@@ -11,9 +11,10 @@ This is a Pytorch implementation of a Face Swap Autoencoder, roughly based on  [
 - Downsampling operations have been remove from VGG-Face to provide more detail in perceptual loss
 
 ## Example Output
-Age Swap (Tom Hanks)
-![](examples/AtoB.jpg)
-![](examples/BtoA.jpg)
+###Tom Hanks(Old -> Young)
+![](examples/AtoB_small.png)
+###Tom Hanks(Young -> Old)
+![](examples/BtoA_small.png)
 
 
 
