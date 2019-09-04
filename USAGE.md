@@ -62,6 +62,6 @@ python train.py --train_epoch 200 --save_root face_swap --load_state output/face
 - Test Image B Example: `output/faceswap_B_200.jpg`
 ![](examples/BtoA.png)
 
-- Loss Graph Example (output every time weights are saved): `output/chiang_mai_loss_160.jpg`
+- Loss Graph Example (output every time weights are saved): `output/faceswap_loss_160.jpg`
 ![](examples/loss_plot.png)
 
