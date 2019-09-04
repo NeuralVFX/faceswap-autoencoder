@@ -10,6 +10,11 @@ This is a Pytorch implementation of a Face Swap Autoencoder, roughly based on  [
 - Conv2d has been customized to properly use spectral normalization before a pixel-shuffle
 - Downsampling operations have been remove from VGG-Face to provide more detail in perceptual loss
 
+## Example Output
+Age Swap (Tom Hanks)
+![](examples/AtoB.jpg)
+![](examples/BtoA.jpg)
+
 
 
 
