@@ -281,7 +281,7 @@ class FaceSwap:
 
     def show_result(self, which, distorted, real):
 
-        # check if we have a stored test image (to compare easily one sample across all models)
+        # check if we have a stored test image (to compare easily one sample across all models
         if not (os.path.exists(f'output/test_real_{which}.jpg') and os.path.exists(
                 f'output/test_distorted_{which}.jpg')):
             cv2.imwrite(f'output/test_distorted_{which}.jpg',
@@ -556,7 +556,6 @@ class FaceSwap:
             per_epoch_ptime = epoch_end_time - epoch_start_time
             print(f'Epoch Training Training Time: {per_epoch_ptime}')
             [print(f'Train {loss}: {helper.mft(self.loss_epoch_dict[loss])}') for loss in self.losses]
-            # [print(f'Val {loss}: {helper.mft(self.loss_epoch_dict_test[loss])}') for loss in self.losses]
             print('\n')
             self.current_epoch += 1
 
