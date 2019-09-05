@@ -393,8 +393,12 @@ class FaceSwap:
         fake_alpha = fake[:, :1, :, :]
         fake_comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
 
-        perc_losses_fake = self.perceptual_loss(self.res_tran(fake_raw), self.res_tran(real))
-        perc_losses_comp = self.perceptual_loss(self.res_tran(fake_comp), self.res_tran(real))
+        perc_losses_fake = self.perceptual_loss(self.res_tran(fake_raw),
+                                                self.res_tran(real))
+        perc_losses_comp = self.perceptual_loss(self.res_tran(fake_comp),
+                                                self.res_tran(real),
+                                                update=False)
+
         self.loss_batch_dict[f'P_{which}_Loss'] = (sum(perc_losses_fake) *.5 ) + (sum(perc_losses_comp) * .5)
 
         # edge loss
@@ -408,7 +412,8 @@ class FaceSwap:
         disc_perc_losses_fake, disc_result_losses_fake = self.perc_dict[f'DISC_{which}'](fake_raw, real,
                                                                                          disc_mode=True)
         disc_perc_losses_comp, disc_result_losses_comp = self.perc_dict[f'DISC_{which}'](fake_comp, real,
-                                                                                         disc_mode=True)
+                                                                                         disc_mode=True,
+                                                                                         update=False)
         # Adversarial loss
         self.loss_batch_dict[f'AE_{which}_Loss'] = (-disc_result_losses_fake.mean() * .5) + (
                 -disc_result_losses_comp.mean() * .5)

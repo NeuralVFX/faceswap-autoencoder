@@ -456,21 +456,25 @@ class PerceptualLoss(nn.Module):
         ratio = ct_wgt / sum(weight_list)
         weight_list = [a * ratio for a in weight_list]
         self.weight_list = weight_list
+        self.targ_feats = False
 
-    def forward(self, fake_img, real_img, disc_mode=False):
+    def forward(self, fake_img, real_img, disc_mode=False, update=True):
         if sum(self.weight_list) > 0.0:
-            self.m(real_img.data)
-            targ_feats = [o.feats.data.clone() for o in self.cfs]
+
+            if update:
+                self.m(real_img.data)
+                self.targ_feats = [o.feats.data.clone() for o in self.cfs]
+
             fake_result = self.m(fake_img)
             inp_feats = [o.feats for o in self.cfs]
 
             if self.use_instance_norm:
                 result_perc = [F.l1_loss(self.IN(inp).view(-1), self.IN(targ).view(-1)) * layer_weight for
                                inp, targ, layer_weight in
-                               zip(inp_feats, targ_feats, self.weight_list)]
+                               zip(inp_feats, self.targ_feats, self.weight_list)]
             else:
                 result_perc = [F.l1_loss(inp.view(-1), targ.view(-1)) * layer_weight for inp, targ, layer_weight in
-                               zip(inp_feats, targ_feats, self.weight_list)]
+                               zip(inp_feats, self.targ_feats, self.weight_list)]
         else:
             result_perc = [torch.zeros(1).cuda() for layer_weight in self.weight_list]
             fake_result = torch.zeros(1).cuda()
