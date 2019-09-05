@@ -393,12 +393,10 @@ class FaceSwap:
         fake_alpha = fake[:, :1, :, :]
         fake_comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
 
-        # using mixup between comped and raw
+        # get perceptual loss, using mixup between comped and raw
         dist = torch.distributions.beta.Beta(.2, .2)
         lam = dist.sample().cuda()
         mixup = lam * fake_comp + (1 - lam) * fake_raw
-
-        # Preceptual loss
         perc_losses_mixup = self.perceptual_loss(self.res_tran(mixup), self.res_tran(real))
         self.loss_batch_dict[f'P_{which}_Loss'] = sum(perc_losses_mixup)
 
@@ -410,14 +408,19 @@ class FaceSwap:
         self.loss_batch_dict[f'L1_{which}_Loss'] = l1_loss
 
         # Discriminator loss
-        disc_perc_losses, disc_result_losses = self.perc_dict[f'DISC_{which}'](mixup, real,
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
+        disc_perc_losses_fake, disc_result_losses_fake = self.perc_dict[f'DISC_{which}'](fake_raw, real,
                                                                                          disc_mode=True)
-
+        disc_perc_losses_comp, disc_result_losses_comp = self.perc_dict[f'DISC_{which}'](fake_comp, real,
+                                                                                         disc_mode=True)
         # Adversarial loss
-        self.loss_batch_dict[f'AE_{which}_Loss'] = -disc_result_losses.mean()
+        self.loss_batch_dict[f'AE_{which}_Loss'] = (-disc_result_losses_fake.mean() * .5) + (
+                -disc_result_losses_comp.mean() * .5)
 
         # Perceptual loss from discriminator
-        self.loss_batch_dict[f'DP_{which}_Loss'] = sum(disc_perc_losses)
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
+        self.loss_batch_dict[f'DP_{which}_Loss'] = (sum(disc_perc_losses_fake) * .5) + \
+                                                   (sum(disc_perc_losses_comp) * .5)
 
         # Alpha Mask loss
         self.loss_batch_dict[f'M_{which}_Loss'] = 1e-2 * torch.mean(torch.abs(fake_alpha))
@@ -450,24 +453,21 @@ class FaceSwap:
         self.set_grad(f"DISC_{which}", True)
         self.opt_dict[f"DISC_{which}"].zero_grad()
 
-        # comp result over input using mask
         fake_raw = fake[:, 1:, :, :]
         fake_alpha = fake[:, :1, :, :]
-        fake_comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
-
-        # using mixup between comped and raw
-        dist = torch.distributions.beta.Beta(.2, .2)
-        lam = dist.sample().cuda()
-        mixup = lam * fake_comp + (1 - lam) * fake_raw
-
+        comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
         # discriminate fake samples
-        d_result_fake = self.model_dict[f"DISC_{which}"](mixup)
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
+        d_result_fake_comp = self.model_dict[f"DISC_{which}"](comp)
+        d_result_fake_rgb = self.model_dict[f"DISC_{which}"](fake_raw)
         # discriminate real samples
         d_result_real = self.model_dict[f"DISC_{which}"](real)
 
         # add up disc a loss and step
-        loss = nn.ReLU()(1.0 - d_result_real).mean() + nn.ReLU()(1.0 + d_result_fake).mean()
-        self.loss_batch_dict[f'D_{which}_Loss'] = loss
+        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
+        comp_loss = nn.ReLU()(1.0 - d_result_real).mean() + nn.ReLU()(1.0 + d_result_fake_comp).mean()
+        rgb_loss = nn.ReLU()(1.0 - d_result_real).mean() + nn.ReLU()(1.0 + d_result_fake_rgb).mean()
+        self.loss_batch_dict[f'D_{which}_Loss'] = (comp_loss * .5) + (rgb_loss * .5)
         self.loss_batch_dict[f'D_{which}_Loss'].backward()
         self.opt_dict[f"DISC_{which}"].step()
 
