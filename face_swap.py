@@ -395,11 +395,11 @@ class FaceSwap:
 
         perc_losses_fake = self.perceptual_loss(self.res_tran(fake_raw),
                                                 self.res_tran(real))
-        perc_losses_comp = self.perceptual_loss(self.res_tran(fake_comp),
-                                                self.res_tran(real),
-                                                update=False)
+        #perc_losses_comp = self.perceptual_loss(self.res_tran(fake_comp),
+        #                                        self.res_tran(real),
+        #                                        update=False)
 
-        self.loss_batch_dict[f'P_{which}_Loss'] = (sum(perc_losses_fake) *.5 ) + (sum(perc_losses_comp) * .5)
+        self.loss_batch_dict[f'P_{which}_Loss'] = sum(perc_losses_fake)  # + (sum(perc_losses_comp) * .5)
 
         # edge loss
         edge = n.edge_loss(fake_raw, real, self.params['edge_weight'])
