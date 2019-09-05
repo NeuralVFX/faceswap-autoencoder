@@ -476,9 +476,9 @@ class PerceptualLoss(nn.Module):
             else:
                 result_perc = [edge_loss(inp, targ, .1)+F.l1_loss(inp.view(-1), targ.view(-1)) * layer_weight for inp, targ, layer_weight in
                                zip(inp_feats, self.targ_feats, self.weight_list)]
-                
+
             # Also use edge loss on the first layer of features
-            result_perc.append(edge_loss(self.IN(inp_feats[0]), self.IN(self.targ_feats[0]), .1))
+            result_perc.append(edge_loss(self.IN(inp_feats[0]), self.IN(self.targ_feats[0]), 1.))
         else:
             result_perc = [torch.zeros(1).cuda() for layer_weight in self.weight_list]
             fake_result = torch.zeros(1).cuda()
