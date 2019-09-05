@@ -393,12 +393,9 @@ class FaceSwap:
         fake_alpha = fake[:, :1, :, :]
         fake_comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
 
-        # get perceptual loss, using mixup between comped and raw
-        dist = torch.distributions.beta.Beta(.2, .2)
-        lam = dist.sample().cuda()
-        mixup = lam * fake_comp + (1 - lam) * fake_raw
-        perc_losses_mixup = self.perceptual_loss(self.res_tran(mixup), self.res_tran(real))
-        self.loss_batch_dict[f'P_{which}_Loss'] = sum(perc_losses_mixup)
+        perc_losses_fake = self.perceptual_loss(self.res_tran(fake_raw), self.res_tran(real))
+        perc_losses_comp = self.perceptual_loss(self.res_tran(fake_comp), self.res_tran(real))
+        self.loss_batch_dict[f'P_{which}_Loss'] = (sum(perc_losses_fake) *.5 ) + (sum(perc_losses_comp) * .5)
 
         # edge loss
         edge = n.edge_loss(fake_raw, real, self.params['edge_weight'])
@@ -408,7 +405,6 @@ class FaceSwap:
         self.loss_batch_dict[f'L1_{which}_Loss'] = l1_loss
 
         # Discriminator loss
-        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
         disc_perc_losses_fake, disc_result_losses_fake = self.perc_dict[f'DISC_{which}'](fake_raw, real,
                                                                                          disc_mode=True)
         disc_perc_losses_comp, disc_result_losses_comp = self.perc_dict[f'DISC_{which}'](fake_comp, real,
@@ -418,7 +414,6 @@ class FaceSwap:
                 -disc_result_losses_comp.mean() * .5)
 
         # Perceptual loss from discriminator
-        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
         self.loss_batch_dict[f'DP_{which}_Loss'] = (sum(disc_perc_losses_fake) * .5) + \
                                                    (sum(disc_perc_losses_comp) * .5)
 
@@ -456,15 +451,14 @@ class FaceSwap:
         fake_raw = fake[:, 1:, :, :]
         fake_alpha = fake[:, :1, :, :]
         comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
+
         # discriminate fake samples
-        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
         d_result_fake_comp = self.model_dict[f"DISC_{which}"](comp)
         d_result_fake_rgb = self.model_dict[f"DISC_{which}"](fake_raw)
         # discriminate real samples
         d_result_real = self.model_dict[f"DISC_{which}"](real)
 
         # add up disc a loss and step
-        # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
         comp_loss = nn.ReLU()(1.0 - d_result_real).mean() + nn.ReLU()(1.0 + d_result_fake_comp).mean()
         rgb_loss = nn.ReLU()(1.0 - d_result_real).mean() + nn.ReLU()(1.0 + d_result_fake_rgb).mean()
         self.loss_batch_dict[f'D_{which}_Loss'] = (comp_loss * .5) + (rgb_loss * .5)

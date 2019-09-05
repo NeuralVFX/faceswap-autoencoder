@@ -251,7 +251,7 @@ class RandomColorCV(object):
             st = self.std_stats[rand_idx]
 
         with np.errstate(divide='ignore', invalid='ignore'):
-    
+
             ms = np.mean(image[cr:-cr, cr:-cr, :], axis=(0, 1))
             ss = np.std(image[cr:-cr, cr:-cr, :], axis=(0, 1))
 
