@@ -386,7 +386,7 @@ class Discriminator(nn.Module):
 
 
 def resnet_face():
-    return rf.resnet50_ft_dag(weights_path='resnet50_ft_dag.pth')
+    return rf.resnet50_ft_dag(weights_path='./models/resnet50_ft_dag.pth')
 
 
 ############################################################################

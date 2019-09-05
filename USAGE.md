@@ -2,7 +2,7 @@
 ## Getting Started
 - Check your python version, this is built on `python 3.6`
 - Install `pytorch 0.4.1` and dependencies from https://pytorch.org/
-- Install packages `tqdm`, `cv2`, `matplotlib`
+- Install packages `tqdm`, `cv2`, `matplotlib`, `skimage`
 
 - Clone this repo:
 ```bash

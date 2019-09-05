@@ -419,7 +419,7 @@ class FaceSwap:
 
         # Perceptual loss from discriminator
         # TODO - USE MIXUP INSTEAD OF RUNNING BOTH
-        self.loss_batch_dict[f'DP_{which}_Loss'] = (sum(disc_perc_losses_fake) * .5) +\
+        self.loss_batch_dict[f'DP_{which}_Loss'] = (sum(disc_perc_losses_fake) * .5) + \
                                                    (sum(disc_perc_losses_comp) * .5)
 
         # Alpha Mask loss
