@@ -249,30 +249,33 @@ class RandomColorCV(object):
         else:
             mt = self.mean_stats[rand_idx]
             st = self.std_stats[rand_idx]
-        ms = np.mean(image[cr:-cr, cr:-cr, :], axis=(0, 1))
-        ss = np.std(image[cr:-cr, cr:-cr, :], axis=(0, 1))
 
-        # randomly interpolate the statistics
-        ratio = np.random.uniform()
-        mt = ratio * mt + (1 - ratio) * ms
-        st = ratio * st + (1 - ratio) * ss
+        with np.errstate(divide='ignore', invalid='ignore'):
 
-        # Apply color transfer from src to tar domain
-        if ss.any() <= 1e-7 or st.any() <= 1e-7 or np.isnan(ss).any() or np.isnan(st).any():
-            return {'image': image}
+            ms = np.mean(image[cr:-cr, cr:-cr, :], axis=(0, 1))
+            ss = np.std(image[cr:-cr, cr:-cr, :], axis=(0, 1))
 
-        result = st * (image.astype(np.float32) - ms) / (ss + 1e-7) + mt
-        # push out of negative
-        if result.min() < 0:
-            result = result - result.min()
-        # scale down below 1.0
-        if result.max() > 1.0:
-            result = (1.0 / result.max() * result).astype(np.float32)
+            # randomly interpolate the statistics
+            ratio = np.random.uniform()
+            mt = ratio * mt + (1 - ratio) * ms
+            st = ratio * st + (1 - ratio) * ss
 
-        # convert_back
-        if use_xyz:
-            result = cv2.cvtColor(result, cv2.COLOR_XYZ2RGB)
-        return {'image': result}
+            # Apply color transfer from src to tar domain
+            if ss.any() <= 1e-7 or st.any() <= 1e-7 or np.isnan(ss).any() or np.isnan(st).any():
+                return {'image': image}
+
+            result = st * (image.astype(np.float32) - ms) / (ss + 1e-7) + mt
+            # push out of negative
+            if result.min() < 0:
+                result = result - result.min()
+            # scale down below 1.0
+            if result.max() > 1.0:
+                result = (1.0 / result.max() * result).astype(np.float32)
+
+            # convert_back
+            if use_xyz:
+                result = cv2.cvtColor(result, cv2.COLOR_XYZ2RGB)
+            return {'image': result}
 
 
 ############################################################################
