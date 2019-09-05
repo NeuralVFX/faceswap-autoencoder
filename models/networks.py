@@ -469,11 +469,11 @@ class PerceptualLoss(nn.Module):
             inp_feats = [o.feats for o in self.cfs]
 
             if self.use_instance_norm:
-                result_perc = [F.l1_loss(self.IN(inp).view(-1), self.IN(targ).view(-1)) * layer_weight for
+                result_perc = [edge_loss(self.IN(inp), self.IN(targ), .1)+F.l1_loss(self.IN(inp).view(-1), self.IN(targ).view(-1)) * layer_weight for
                                inp, targ, layer_weight in
                                zip(inp_feats, self.targ_feats, self.weight_list)]
             else:
-                result_perc = [F.l1_loss(inp.view(-1), targ.view(-1)) * layer_weight for inp, targ, layer_weight in
+                result_perc = [edge_loss(inp, targ, .1)+F.l1_loss(inp.view(-1), targ.view(-1)) * layer_weight for inp, targ, layer_weight in
                                zip(inp_feats, self.targ_feats, self.weight_list)]
         else:
             result_perc = [torch.zeros(1).cuda() for layer_weight in self.weight_list]
