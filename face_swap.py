@@ -50,7 +50,7 @@ class FaceSwap:
               'save_img_every': 1,
               'lr_drop_start': 0,
               'lr_drop_every': 40,
-              'save_root': 'gump'}
+              'save_root': 'faceswap'}
 
     rev = FaceSwap(params)
     rev.train()
@@ -490,7 +490,7 @@ class FaceSwap:
             return zip(cycle(self.train_loader_a), self.train_loader_b)
 
     def train_loop(self):
-        # Train on train set
+
         self.current_epoch_iter = 0
         for key in self.model_dict.keys():
             self.model_dict[key].train()
@@ -499,16 +499,16 @@ class FaceSwap:
         for loss in self.losses:
             self.loss_epoch_dict[loss] = []
 
+        # Set Learning rate
         lr_mult = self.lr_lookup()
         self.opt_dict["AE_A"].param_groups[0]['lr'] = self.params['lr'] * (lr_mult / 2)
         self.opt_dict["AE_B"].param_groups[0]['lr'] = self.params['lr'] * (lr_mult / 2)
         self.opt_dict["DISC_A"].param_groups[0]['lr'] = self.params['lr'] * lr_mult
         self.opt_dict["DISC_B"].param_groups[0]['lr'] = self.params['lr'] * lr_mult
-        # print LR and weight decay
+
+        # Print Learning Rate
         print(f"Sched Sched Iter:{self.current_iter}, Sched Epoch:{self.current_epoch}")
-        [print(f"Learning Rate({opt}): {self.opt_dict[opt].param_groups[0]['lr']}",
-               f" Weight Decay:{ self.opt_dict[opt].param_groups[0]['weight_decay']}")
-         for opt in self.opt_dict.keys()]
+        [print(f"Learning Rate({opt}): {self.opt_dict[opt].param_groups[0]['lr']}") for opt in self.opt_dict.keys()]
 
         # Train loop
 
@@ -517,14 +517,16 @@ class FaceSwap:
             target_a = Variable(package_a[1]).cuda()
             warped_b = Variable(package_b[0]).cuda()
             target_b = Variable(package_b[1]).cuda()
-            # TRAIN GENERATOR, OR JUST GENERATE
 
+            # TRAIN AUTOENCODERS
             fake_a = self.train_ae('A', warped_a, target_a)
             fake_b = self.train_ae('B', warped_b, target_b)
 
+            # TRAIN DISCRIMINATORS
             self.train_disc('A', target_a, fake_a, warped_a)
             self.train_disc('B', target_b, fake_b, warped_b)
 
+            # MAKE PREVIEW IMAGES
             if self.current_epoch_iter == 0 and self.current_epoch % self.params["save_img_every"] == 0:
                 self.show_result('A', warped_a, target_a)
                 self.show_result('B', warped_b, target_b)
