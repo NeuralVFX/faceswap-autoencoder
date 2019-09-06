@@ -9,6 +9,7 @@ This is a Pytorch implementation of a Face Swap Autoencoder, roughly based on  [
 - Discriminator is being used only as a `learned preceptual loss`, not a direct adversarial loss
 - Conv2d has been customized to properly use spectral normalization before a pixel-shuffle
 - Downsampling operations have been remove from VGG-Face to provide more detail in perceptual loss
+- There are still a couple things I'm testing to improve this, so be aware this is `STILL IN PROGRESS`
 
 ## Example Output
 ### Tom Hanks(Old to Young)
