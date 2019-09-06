@@ -393,10 +393,15 @@ class FaceSwap:
         fake_alpha = fake[:, :1, :, :]
         fake_comp = (fake_alpha * fake_raw) + ((1 - fake_alpha) * distorted)
 
-        perc_losses_fake = self.perceptual_loss(self.res_tran(fake_raw),
-                                                self.res_tran(real))
+        # get perceptual loss, using mixup between comped and raw
+        dist = torch.distributions.beta.Beta(.2, .2)
+        lam = dist.sample().cuda()
+        mixup = lam * fake_comp + (1 - lam) * fake_raw
+        perc_losses_mixup = self.perceptual_loss(self.res_tran(mixup), self.res_tran(real))
+        self.loss_batch_dict[f'P_{which}_Loss'] = sum(perc_losses_mixup)
 
-        self.loss_batch_dict[f'P_{which}_Loss'] = sum(perc_losses_fake)
+
+        self.loss_batch_dict[f'P_{which}_Loss'] = sum(perc_losses_mixup)
 
         # edge loss
         edge = n.edge_loss(fake_raw, real, self.params['edge_weight'])
