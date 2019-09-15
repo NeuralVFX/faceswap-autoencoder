@@ -66,7 +66,7 @@ def make_img_square(input_img):
 
 
 class FlipCV(object):
-    # resize image and bbox
+    # flip image
     def __init__(self, p_x=.5, p_y=.5):
         self.p_x = p_x
         self.p_y = p_y
@@ -89,7 +89,7 @@ class FlipCV(object):
 
 
 class ResizeCV(object):
-    # resize image and bbox
+    # resize image
     def __init__(self, output_size):
         self.output_size = output_size
 
@@ -206,7 +206,7 @@ class DistortCV(object):
 
 
 class RandomColorCV(object):
-    # distort image, return both distorted and non-distorted
+    # Apply random color variation based on statistics of dataset
     def __init__(self, all_images=[], crop_ratio=.2):
         self.all_images = all_images
         self.crop_ratio = crop_ratio
@@ -284,7 +284,7 @@ class RandomColorCV(object):
 
 
 class FaceDataset(Dataset):
-    # Load Images from GeoPose3k Dataset and Apply Augmentation
+    # Load Images from Dataset and Apply Augmentation and Distortion
     def __init__(self, path_a, path_b, transform, output_res=256):
         self.transform = transform
         self.path_list_rgb = glob.glob(str(path_a) + '/*.jpg')

@@ -242,7 +242,7 @@ class SelfAttention(nn.Module):
 class Decoder(nn.Module):
     # Decodes latent vector into output image
 
-    def __init__(self, layers=4, max_filts=1024, min_filts=64, channels=3, attention=False):
+    def __init__(self, layers=4, max_filts=512, min_filts=64, channels=3, attention=False):
         super(Decoder, self).__init__()
         operations = []
         print('decoder')
@@ -324,7 +324,7 @@ class Encoder(nn.Module):
                                                nn.Linear(2048, 4 * 4 * 1024))
 
         self.output_operations = UpResBlock(int(min(filts, filt_count)),
-                                            int(min(filts, filt_count // 2)))
+                                            filts//2)
 
     def forward(self, x):
         bs = x.shape[0]

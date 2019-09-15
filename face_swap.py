@@ -102,11 +102,11 @@ class FaceSwap:
         self.model_dict['ENC'] = n.Encoder(layers=int(math.log(params["res"], 2) - 2),
                                            attention=params['enc_att'])
 
-        self.model_dict['DEC_A'] = n.Decoder(layers=int(math.log(params["res"], 2) - 4),
-                                             min_filts=128,
+        self.model_dict['DEC_A'] = n.Decoder(layers=int(math.log(params["res"], 2) - 3),
+                                             min_filts=64,
                                              attention=params['dec_att'])
-        self.model_dict['DEC_B'] = n.Decoder(layers=int(math.log(params["res"], 2) - 4),
-                                             min_filts=128,
+        self.model_dict['DEC_B'] = n.Decoder(layers=int(math.log(params["res"], 2) - 3),
+                                             min_filts=64,
                                              attention=params['dec_att'])
 
         self.model_dict['DISC_A'] = n.Discriminator(attention=params['disc_att'],
@@ -425,12 +425,12 @@ class FaceSwap:
         self.loss_batch_dict[f'M_{which}_Loss'] = 1e-2 * torch.mean(torch.abs(fake_alpha))
 
         # Alpha mask variation loss
-        self.loss_batch_dict[f'MV_{which}_Loss'] = .1 * ( torch.mean(n.emboss(fake_alpha, axis=2)) + \
-                                                          torch.mean(n.emboss(fake_alpha, axis=3)))
+        self.loss_batch_dict[f'MV_{which}_Loss'] = .1 * (torch.mean(n.emboss(fake_alpha, axis=2)) + \
+                                                         torch.mean(n.emboss(fake_alpha, axis=3)))
 
-        total_loss = self.loss_batch_dict[f'L1_{which}_Loss'] +\
+        total_loss = self.loss_batch_dict[f'L1_{which}_Loss'] + \
                      self.loss_batch_dict[f'P_{which}_Loss'] + \
-                     self.loss_batch_dict[f'DP_{which}_Loss'] +\
+                     self.loss_batch_dict[f'DP_{which}_Loss'] + \
                      self.loss_batch_dict[f'M_{which}_Loss'] + \
                      self.loss_batch_dict[f'MV_{which}_Loss'] + \
                      edge
