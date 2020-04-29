@@ -103,10 +103,12 @@ class FaceSwap:
                                            attention=params['enc_att'])
 
         self.model_dict['DEC_A'] = n.Decoder(layers=int(math.log(params["res"], 2) - 3),
-                                             min_filts=64,
+                                             min_filts=128,
+                                             max_filts=1024,
                                              attention=params['dec_att'])
         self.model_dict['DEC_B'] = n.Decoder(layers=int(math.log(params["res"], 2) - 3),
-                                             min_filts=64,
+                                             min_filts=128,
+                                             max_filts=1024,
                                              attention=params['dec_att'])
 
         self.model_dict['DISC_A'] = n.Discriminator(attention=params['disc_att'],
