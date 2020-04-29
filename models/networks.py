@@ -34,34 +34,41 @@ class TensorTransform(nn.Module):
 
 
 class SReLU(nn.Module):
-    # Relu with ability to subtract the mean
+    # Wrapper for relu
 
-    def __init__(self, slope=.01, sub=None):
+    def __init__(self, slope=.01):
         super(SReLU, self).__init__()
         self.slope = slope
-        self.sub = sub
 
     def forward(self, x):
         x = F.leaky_relu(x, self.slope)
-        if self.sub is not None:
-            x.sub_(self.sub)
         return x
 
 
 class PreShuffConv(nn.Module):
     # Convolution which is compatible with pixel shuffle and spectral normalization
 
-    def __init__(self, ni, nf, kernel_size=3):
+    def __init__(self, ni, nf, kernel_size=3, reflect=False):
         super(PreShuffConv, self).__init__()
+        
+        self.reflect = reflect
+        
+        padding = kernel_size // 2
+            
+        if reflect:
+            padding = 0
+            
         conv_list = [nn.Conv2d(ni, nf // 4,
-                               kernel_size,
-                               padding=kernel_size // 2,
-                               bias=False) for i in range(4)]
+                           kernel_size,
+                           padding=padding,
+                           bias=False) for i in range(4)]
 
+            
         self.conv_list = nn.ModuleList(
             [spectral_norm(conv) for conv in conv_list])
 
     def forward(self, x):
+
         conv_list = [conv(x) for conv in self.conv_list]
         bs, filts, height, width = conv_list[0].shape[0], \
                                    conv_list[0].shape[1] * 4, \
@@ -80,57 +87,83 @@ class PreShuffConv(nn.Module):
 class ConvBlock(nn.Module):
     # Conv and Relu with option for PreShuffConv
 
-    def __init__(self, ni, nf, kernel_size=3, quad_conv=True, stride=2, bias=True):
+    def __init__(self, ni, nf, kernel_size=3, quad_conv=True, stride=2, bias=True, reflect=False):
         super(ConvBlock, self).__init__()
         self.quad_conv = quad_conv
+        self.reflect = reflect
         if quad_conv:
-            self.conv = PreShuffConv(ni, nf, kernel_size=kernel_size)
+            self.conv = PreShuffConv(ni, nf, kernel_size=kernel_size, reflect=reflect)
         else:
+            padding = kernel_size // 2
+            
+            if reflect:
+                padding = 0
+                
             self.conv = spectral_norm(
                 nn.Conv2d(ni, nf,
-                          kernel_size,
-                          padding=kernel_size // 2,
-                          stride=stride,
-                          bias=bias))
+                      kernel_size,
+                      padding=padding,
+                      stride=stride,
+                      bias=bias))
 
-        self.relu = SReLU(slope=.1, sub=.4)
+        self.relu = SReLU(slope=.1)
+        self.ref_pad = nn.ReflectionPad2d(kernel_size // 2)
+
 
     def forward(self, x):
         # store input for res
+        if self.reflect:
+            x = self.ref_pad(x)
+            
         x = self.relu(self.conv(x))
 
         return x
 
 
 class ResBlock(nn.Module):
-    # Upres block which uses pixel shuffle with res connection
 
-    def __init__(self, c, kernel_size=3):
+    def __init__(self, c, kernel_size=3, reflect = False):
         super(ResBlock, self).__init__()
+        
+        padding = kernel_size // 2
+        
+        self.reflect = reflect
+        
+        if reflect:
+            padding = 0
 
         self.conv_a = spectral_norm(nn.Conv2d(c, c,
                                               kernel_size,
-                                              padding=kernel_size // 2,
+                                              padding=padding,
                                               stride=1,
                                               bias=False))
 
         self.conv_b = spectral_norm(nn.Conv2d(c, c,
                                               kernel_size,
-                                              padding=kernel_size // 2,
+                                              padding=padding,
                                               stride=1,
                                               bias=False))
 
-        self.relu = SReLU(slope=.1, sub=.4)
+        self.ref_pad = nn.ReflectionPad2d(kernel_size // 2)
 
-        self.bn_a = nn.BatchNorm2d(c)
-        self.bn_b = nn.BatchNorm2d(c)
+        self.relu = SReLU(slope=.1)
+
+        self.bn_a = nn.InstanceNorm2d(c)
+        self.bn_b = nn.InstanceNorm2d(c)
 
     def forward(self, x):
         # store input for res
         input_tensor = x
 
+        if self.reflect:
+            x = self.ref_pad(x)
+            
         x = self.relu(self.conv_a(x))
         x = self.bn_a(x)
+        
+        if self.reflect:
+            x = self.ref_pad(x)
+            
         x = self.conv_b(x)
         x = x + (input_tensor * .2)
         x = self.relu(x)
@@ -142,7 +175,7 @@ class ResBlock(nn.Module):
 class UpResBlock(nn.Module):
     # Upres block which uses pixel shuffle
 
-    def __init__(self, ic, oc, kernel_size=3):
+    def __init__(self, ic, oc, kernel_size=3,reflect=False):
         super(UpResBlock, self).__init__()
 
         self.oc = oc
@@ -150,24 +183,24 @@ class UpResBlock(nn.Module):
                               kernel_size=kernel_size,
                               quad_conv=True,
                               stride=1,
-                              bias=False)
+                              bias=False,
+                              reflect = reflect)
 
-        self.bn = nn.BatchNorm2d(oc * 4)
+        self.bn = nn.InstanceNorm2d(oc * 4)
         self.ps = nn.PixelShuffle(2)
 
     def forward(self, x):
         # store input for res
-        x = self.conv(x)
         x = self.bn(x)
-
+        x = self.conv(x)
         x = self.ps(x)
         return x
 
 
 class DownResBlock(nn.Module):
-    # DownRes block, with or without batchnorm
+    # DownRes block, with or without normalization
 
-    def __init__(self, ic, oc, kernel_size=3, enc=False):
+    def __init__(self, ic, oc, kernel_size=3, enc=False, reflect=False):
         super(DownResBlock, self).__init__()
 
         self.kernel_size = kernel_size
@@ -178,21 +211,21 @@ class DownResBlock(nn.Module):
             self.conv = ConvBlock(ic, oc,
                                   kernel_size=kernel_size,
                                   quad_conv=False,
-                                  bias=False)
+                                  bias=False,
+                                  reflect = reflect)
 
-            self.bn = nn.BatchNorm2d(oc)
+            self.bn = nn.InstanceNorm2d(oc)
         else:
             self.conv = ConvBlock(ic, oc,
                                   kernel_size=kernel_size,
                                   quad_conv=False,
-                                  bias=True)
+                                  bias=True,
+                                  reflect = reflect)
 
     def forward(self, x):
-
-        x = self.conv(x)
         if self.use_bn:
             x = self.bn(x)
-
+        x = self.conv(x)
         return x
 
 
@@ -251,14 +284,14 @@ class Decoder(nn.Module):
         for a in range(layers):
             print('up_block')
             operations += [UpResBlock(int(min(max_filts, filt_count * 2)),
-                                      int(min(max_filts, filt_count)))]
+                                      int(min(max_filts, filt_count)),reflect=True)]
 
             if a in [layers - 2, layers - 3] and attention:
                 print('attn')
                 operations += [SelfAttention(int(min(max_filts, filt_count * 2)))]
 
                 if a == layers - 3:
-                    operations += [ResBlock(int(min(max_filts, filt_count * 2)))]
+                    operations += [ResBlock(int(min(max_filts, filt_count * 2)),reflect=True)]
             filt_count = int(filt_count * 2)
 
         operations.reverse()
@@ -309,7 +342,8 @@ class Encoder(nn.Module):
             operations += [DownResBlock(ic=min(filt_count, filts),
                                         oc=min(filt_count * 2, filts),
                                         kernel_size=3,
-                                        enc=True)]
+                                        enc=True,
+                                        reflect=True)]
 
             if a in [1, 2] and attention:
                 print('attn')
@@ -323,15 +357,14 @@ class Encoder(nn.Module):
         self.linear_operations = nn.Sequential(nn.Linear(4 * 4 * 1024, 2048),
                                                nn.Linear(2048, 4 * 4 * 1024))
 
-        self.output_operations = UpResBlock(int(min(filts, filt_count)),
-                                            filts//2)
+        self.output_operations = nn.Sequential(UpResBlock(int(min(filts, filt_count)),
+                                               int(min(filts, filt_count // 2)),reflect=True))
 
     def forward(self, x):
         bs = x.shape[0]
         x = self.operations(x)
         x = self.linear_operations(x.view(bs, -1))
         x = self.output_operations(x.view(bs, 1024, 4, 4))
-        x = self.output_operations(x)
         return x
 
 
@@ -341,7 +374,7 @@ class Encoder(nn.Module):
 
 
 class Discriminator(nn.Module):
-    # Discriminator roughly based on SRGAN
+    # Discriminator roughly based on SAGAN
 
     def __init__(self, channels=3, filts_min=64, filts=256, kernel_size=4, layers=4, attention=False):
         super(Discriminator, self).__init__()
@@ -360,7 +393,7 @@ class Discriminator(nn.Module):
         for a in range(layers):
             operations += [DownResBlock(ic=min(filt_count, filts),
                                         oc=min(filt_count * 2, filts),
-                                        kernel_size=3)]
+                                        kernel_size=3,reflect=True)]
 
             if a > 2 and attention:
                 print('attn')
@@ -368,11 +401,11 @@ class Discriminator(nn.Module):
             print(min(filt_count * 2, filts))
             filt_count = int(filt_count * 2)
 
-        out_operations = [
+        out_operations = [nn.ReflectionPad2d(1),
             spectral_norm(
                 nn.Conv2d(in_channels=min(filt_count, filts),
                           out_channels=1,
-                          padding=1,
+                          padding=0,
                           kernel_size=kernel_size,
                           stride=1))]
 
