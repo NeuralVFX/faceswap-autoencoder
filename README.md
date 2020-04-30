@@ -1,4 +1,4 @@
-![](examples/gump_example.gif)
+![](examples/example_video.gif)
 # Faceswap-Autoencoder
 
 This is a Pytorch implementation of a Face Swap Autoencoder, roughly based on  [Shaonlu's tensorflow implementation.](https://github.com/shaoanlu/faceswap-GAN). 
