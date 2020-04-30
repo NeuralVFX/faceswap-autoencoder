@@ -13,9 +13,9 @@ This is a Pytorch implementation of a Face Swap Autoencoder, roughly based on  [
 
 ## Example Output
 ### Tom Hanks(Old to Young)
-![](examples/AtoB_small.png)
+![](examples/a_to_b.png)
 ### Tom Hanks(Young to Old)
-![](examples/BtoA_small.png)
+![](examples/b_to_a.png)
 
 ## Code Usage
 Usage instructions found here: [user manual page](USAGE.md).
